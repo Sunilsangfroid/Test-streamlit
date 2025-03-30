@@ -226,7 +226,9 @@ with tab2:
             places_list = st.session_state.route_places
             
             # Display all destinations info
-            display_multi_destination_info(places_list)
+            with st.spinner("Generating unique descriptions for each destination..."):
+                display_multi_destination_info(places_list)
+            # display_multi_destination_info(places_list)
             
             st.markdown("---")
         
@@ -313,6 +315,23 @@ with tab2:
 with tab3:
     st.header("Step 3: Book Your Trip")
     
+    # Transport type icons dictionary
+    transport_icons = {
+        "flight": "✈️",
+        "train": "🚆",
+        "bus": "🚌",
+        "cab": "🚕"
+    }
+    
+    # Payment method icons dictionary
+    payment_icons = {
+        "Credit Card": "💳",
+        "Debit Card": "💳",
+        "Net Banking": "🏦",
+        "UPI": "📱",
+        "Wallet": "👛"
+    }
+    
     # Check if user has itinerary and has confirmed to proceed
     if 'itinerary' not in st.session_state:
         st.info("Please generate an itinerary in the Detailed Itinerary tab first.")
@@ -326,21 +345,24 @@ with tab3:
             # Display a step-by-step booking process
             for i, leg in enumerate(journey_legs):
                 leg_id = f"leg_{i+1}"
+                leg_type_icon = transport_icons.get(leg['type'].lower(), "🚀")
                 leg_name = f"{leg['from']} to {leg['to']} via {leg['type'].title()}"
                 
                 # Check if this leg is already booked
                 is_booked = st.session_state.booking_steps_completed.get(leg_name, False)
                 status = "✅" if is_booked else "⏳ Pending"
                 
-                with st.expander(f"Step {i+1}: {leg_name} - {status}", expanded=not is_booked):
+                with st.expander(f"{leg_type_icon} Step {i+1}: {leg_name} - {status}", expanded=not is_booked):
                     if is_booked:
                         st.success(f"✅ Your {leg['type']} from {leg['from']} to {leg['to']} has been booked successfully.")
                         continue
                         
-                    st.markdown(f"**From:** {leg['from']}  |  **To:** {leg['to']}  |  **Transport Type:** {leg['type'].title()}")
+                    st.markdown(f"**From:** {leg['from']}  |  **To:** {leg['to']}  |  **Transport Type:** {leg_type_icon} {leg['type'].title()}")
                     
                     # Generate and display options based on transportation type
                     if leg['type'].lower() == 'flight':
+                        # Add a flight icon/image
+                        st.image("https://cdn-icons-png.flaticon.com/512/3125/3125713.png", width=60)
                         options = generate_flight_options(leg['from'], leg['to'], "tomorrow")
                         df = pd.DataFrame(options)
                         st.dataframe(
@@ -361,6 +383,8 @@ with tab3:
                         price = options[selected_idx]['price']
                         
                     elif leg['type'].lower() == 'train':
+                        # Add a train icon/image
+                        st.image("https://cdn-icons-png.flaticon.com/512/3078/3078984.png", width=60)
                         options = generate_train_options(leg['from'], leg['to'], "tomorrow")
                         df = pd.DataFrame(options)
                         st.dataframe(
@@ -381,6 +405,8 @@ with tab3:
                         price = options[selected_idx]['price']
                         
                     elif leg['type'].lower() == 'bus':
+                        # Add a bus icon/image
+                        st.image("https://cdn-icons-png.flaticon.com/512/9400/9400355.png", width=60)
                         options = generate_bus_options(leg['from'], leg['to'], "tomorrow")
                         df = pd.DataFrame(options)
                         st.dataframe(
@@ -401,6 +427,8 @@ with tab3:
                         price = options[selected_idx]['price']
                         
                     elif leg['type'].lower() == 'cab':
+                        # Add a cab icon/image
+                        st.image("https://cdn-icons-png.flaticon.com/512/744/744465.png", width=60)
                         options = generate_cab_options(leg['from'], leg['to'])
                         df = pd.DataFrame(options)
                         st.dataframe(
@@ -420,21 +448,25 @@ with tab3:
                         selected_idx = [f"{opt['cab_type']} - ₹{opt['price']}" for opt in options].index(selected_option)
                         price = options[selected_idx]['price']
                     
-                    # Payment section
-                    st.subheader(f"Payment for {leg['from']} to {leg['to']}")
+                    # Payment section with enhanced visuals
+                    st.markdown("---")
+                    st.subheader(f"💰 Payment for {leg['from']} to {leg['to']}")
                     
                     col1, col2 = st.columns([1, 1])
                     with col1:
                         payment_method = display_payment_methods(key_suffix=f"leg_{i}")
+                        # Display the payment icon
+                        if payment_method in payment_icons:
+                            st.markdown(f"**Selected Payment Method:** {payment_icons[payment_method]} {payment_method}")
                     
                     with col2:
                         st.info(f"**Amount:** ₹{price}")
                         
-                        # Add a small image of payment security
-                        st.image("https://www.pngitem.com/pimgs/m/17-170233_secure-payment-icon-png-transparent-png.png", width=150)
+                        # Updated payment security image
+                        st.image("https://cdn-icons-png.flaticon.com/512/2146/2146588.png", width=100, caption="Secure Payment")
                     
                     # Process payment
-                    if st.button(f"Complete Booking for {leg['from']} to {leg['to']}", key=f"pay_leg_{i}", type="primary"):
+                    if st.button(f"💳 Complete Booking for {leg['from']} to {leg['to']}", key=f"pay_leg_{i}", type="primary"):
                         with st.spinner("Processing your booking..."):
                             time.sleep(2)  # Simulate processing time
                             st.session_state.booking_steps_completed[leg_name] = True
@@ -453,11 +485,21 @@ with tab3:
                             })
                             
                         st.success(f"✅ Booking confirmed! Your {leg['type']} from {leg['from']} to {leg['to']} has been booked.")
-                        # Removed balloons() call
             
-            # Hotel booking section
+            # Hotel booking section with enhanced visuals
             st.markdown("---")
-            st.subheader("Hotel Bookings")
+            st.subheader("🏨 Hotel Bookings")
+
+            # Hotel images dictionary for specific locations
+            hotel_images = {
+                "Bhubaneswar": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/0c/13/34/03/mayfair-convention.jpg?w=700&h=-1&s=1",
+                "Delhi": "https://cdn.britannica.com/96/115096-050-5AFDAF5D/Bellagio-Hotel-Casino-Las-Vegas.jpg",
+                "Agra": "https://imgcy.trivago.com/c_fill,d_dummy.jpeg,e_sharpen:60,f_auto,h_627,q_auto,w_1200/itemimages/66/54/66546_v5.jpeg",
+                "PrayagRaj": "https://imgcy.trivago.com/c_fill,d_dummy.jpeg,e_sharpen:60,f_auto,h_627,q_auto,w_1200/itemimages/31/75/3175346_v4.jpeg",
+                "Patna": "https://imgcy.trivago.com/c_fill,d_dummy.jpeg,e_sharpen:60,f_auto,h_627,q_auto,w_1200/itemimages/55/23/5523770.jpeg",
+                "New York": "https://www.usatoday.com/gcdn/-mm-/05b227ad5b8ad4e9dcb53af4f31d7fbdb7fa901b/c=0-64-2119-1259/local/-/media/USATODAY/USATODAY/2014/08/13/1407953244000-177513283.jpg",
+                "San Francisco": "https://cf.bstatic.com/xdata/images/hotel/max1024x768/164322215.jpg?k=fc3862975a4b55f867574c16f63e42bcb3dc5bd895895615fb0239fc42030b70&o=&hp=1",
+            }
 
             # Extract accommodation locations from itinerary
             accommodation_locations = []
@@ -468,13 +510,11 @@ with tab3:
             # Display accommodations to book
             if accommodation_locations:
                 for location_idx, location in enumerate(accommodation_locations):
-                    # Rest of the new hotel booking code...
-                    # (paste the remaining hotel booking code here)
                     acc_name = f"Hotel in {location}"
                     is_booked = st.session_state.booking_steps_completed.get(acc_name, False)
                     status = "✅" if is_booked else "⏳ Pending"
                     
-                    with st.expander(f"Hotel Booking in {location} - {status}", expanded=not is_booked):
+                    with st.expander(f"🏨 Hotel Booking in {location} - {status}", expanded=not is_booked):
                         if is_booked:
                             st.success(f"✅ Your accommodation in {location} has been booked successfully.")
                             continue
@@ -482,19 +522,25 @@ with tab3:
                         # Generate hotel options for the location
                         hotel_options = generate_hotel_options(location, "tomorrow", "day after")
                         
-                        # Display hotel options
+                        # Display hotel options with better images
                         for j, hotel in enumerate(hotel_options):
                             col1, col2 = st.columns([1, 3])
                             with col1:
-                                st.image(f"https://source.unsplash.com/300x200/?hotel,{location}", caption=hotel['name'])
+                                # Use location-specific images if available, otherwise use a more specific hotel query
+                                if location in hotel_images:
+                                    image_url = hotel_images[location]
+                                else:
+                                    # More specific query for better hotel images
+                                    image_url = f"https://source.unsplash.com/featured/300x200/?luxury,hotel,{location}"
+                                st.image(image_url, caption=hotel['name'])
                             
                             with col2:
                                 st.markdown(f"**{hotel['name']}**")
                                 st.markdown(f"⭐ {'⭐' * (hotel['stars'] - 1)} ({hotel['rating']})")
-                                st.markdown(f"**Price:** ₹{hotel['price_per_night']} per night")
-                                st.markdown(f"**Amenities:** {', '.join(hotel['amenities'])}")
+                                st.markdown(f"**Price:** 💰 ₹{hotel['price_per_night']} per night")
+                                st.markdown(f"**Amenities:** 🛌 {', '.join(hotel['amenities'])}")
                                 
-                                if st.button(f"Select {hotel['name']}", key=f"select_hotel_{location_idx}_{j}"):
+                                if st.button(f"🏨 Select {hotel['name']}", key=f"select_hotel_{location_idx}_{j}"):
                                     st.session_state.selected_hotel = hotel
                                     st.session_state.selected_hotel_location = location
                         
@@ -502,39 +548,47 @@ with tab3:
                         if "selected_hotel" in st.session_state and st.session_state.selected_hotel_location == location:
                             hotel = st.session_state.selected_hotel
                             st.markdown("---")
-                            st.markdown(f"### Booking: {hotel['name']}")
+                            st.markdown(f"### 🏨 Booking: {hotel['name']}")
                             
                             col1, col2 = st.columns(2)
                             with col1:
-                                checkin = st.date_input(f"Check-in Date", value=None, key=f"checkin_{location_idx}")
-                                room_type = st.selectbox("Room Type", ["Standard", "Deluxe", "Suite"], key=f"room_{location_idx}")
+                                st.markdown("**📅 Check-in Date:**")
+                                checkin = st.date_input(f"Check-in", value=None, key=f"checkin_{location_idx}", label_visibility="collapsed")
+                                st.markdown("**🛏️ Room Type:**")
+                                room_type = st.selectbox("Room Type", ["Standard", "Deluxe", "Suite"], key=f"room_{location_idx}", label_visibility="collapsed")
                             with col2:
-                                checkout = st.date_input(f"Check-out Date", value=None, key=f"checkout_{location_idx}")
-                                guests = st.selectbox("Guests", list(range(1, 5)), key=f"guests_{location_idx}")
+                                st.markdown("**📅 Check-out Date:**")
+                                checkout = st.date_input(f"Check-out", value=None, key=f"checkout_{location_idx}", label_visibility="collapsed")
+                                st.markdown("**👥 Number of Guests:**")
+                                guests = st.selectbox("Guests", list(range(1, 5)), key=f"guests_{location_idx}", label_visibility="collapsed")
                                 
                             # Calculate total price
                             nights = (checkout - checkin).days if checkin and checkout else 1
                             total_price = hotel['price_per_night'] * nights
                             
-                            st.info(f"Total for {nights} night(s): ₹{total_price}")
+                            st.info(f"**Total for {nights} night(s):** 💰 ₹{total_price}")
                             
                             # Payment section
-                            st.subheader(f"Payment for {hotel['name']}")
+                            st.subheader(f"💳 Payment for {hotel['name']}")
                             
-                            # THIS IS THE CRITICAL CHANGE - use a unique key for each hotel payment
+                            # Use a unique key for each hotel payment
                             payment_method = display_payment_methods(key_suffix=f"hotel_{location_idx}_{hotel['name'].replace(' ', '_')}")
                             
+                            # Display payment icon
+                            if payment_method in payment_icons:
+                                st.markdown(f"**Selected Payment Method:** {payment_icons[payment_method]} {payment_method}")
+                            
                             # Process payment
-                            if st.button(f"Complete Hotel Booking", key=f"pay_hotel_{location_idx}_{hotel['name'].replace(' ', '_')}", type="primary"):
+                            if st.button(f"💳 Complete Hotel Booking", key=f"pay_hotel_{location_idx}_{hotel['name'].replace(' ', '_')}", type="primary"):
                                 with st.spinner("Processing your booking..."):
                                     time.sleep(2)  # Simulate processing time
                                     handle_hotel_booking(location_idx, hotel, payment_method, total_price)
                                     
                                 st.success(f"✅ Hotel booking confirmed! Your stay at {hotel['name']} in {location} has been reserved.")
-                                # Removed balloons() call
             
-            # Payment summary section
+            # Payment summary section with enhanced visuals
             st.markdown("---")
+            st.subheader("💰 Payment Summary")
             display_payment_summary()
             
             # Complete booking status
@@ -549,26 +603,27 @@ with tab3:
                 st.success("🎉 Congratulations! All bookings are complete. Your trip is fully booked and ready!")
                 
                 # Generate final itinerary button
-                if st.button("Generate Final Trip Itinerary"):
-                    st.markdown("### Your Complete Trip Itinerary")
+                if st.button("📄 Generate Final Trip Itinerary"):
+                    st.markdown("### 🧳 Your Complete Trip Itinerary")
                     st.markdown("Below is your finalized trip itinerary with all bookings confirmed:")
                     
                     # Display journey legs with booking details
                     for i, leg in enumerate(journey_legs):
-                        st.markdown(f"**Leg {i+1}:** {leg['from']} to {leg['to']} via {leg['type'].title()}")
+                        leg_type_icon = transport_icons.get(leg['type'].lower(), "🚀")
+                        st.markdown(f"**Leg {i+1}:** {leg_type_icon} {leg['from']} to {leg['to']} via {leg['type'].title()}")
                     
                     # Display accommodation bookings
                     for location in accommodation_locations:
-                        st.markdown(f"**Stay:** Hotel in {location}")
+                        st.markdown(f"**Stay:** 🏨 Hotel in {location}")
                     
                     # Display payment summary
                     if "payments" in st.session_state and st.session_state.payments:
                         total_amount = sum(payment["amount"] for payment in st.session_state.payments)
-                        st.markdown(f"**Total Amount Paid:** ₹{total_amount:,.2f}")
+                        st.markdown(f"**Total Amount Paid:** 💰 ₹{total_amount:,.2f}")
                     
                     # Option to download
                     st.download_button(
-                        "Download Complete Itinerary",
+                        "📥 Download Complete Itinerary",
                         "Complete itinerary content would go here",
                         file_name="complete_travel_itinerary.pdf",
                         mime="application/pdf",
@@ -576,7 +631,7 @@ with tab3:
             
             # Reset option
             st.markdown("---")
-            if st.button("Start Over With New Route Planning"):
+            if st.button("🔄 Start Over With New Route Planning"):
                 for key in ['selected_route', 'itinerary', 'proceed_to_booking', 'journey_legs', 
                            'booking_steps_completed', 'payments', 'selected_hotel', 'selected_hotel_location']:
                     if key in st.session_state:

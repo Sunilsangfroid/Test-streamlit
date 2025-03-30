@@ -1,18 +1,24 @@
 import streamlit as st
 import requests
-from bs4 import BeautifulSoup
 import random
 
 def fetch_destination_image(destination_name):
     """
-    Fetch an image URL for a destination using Unsplash API
+    Fetch an image URL for a destination using Openverse API.
     """
+    # Refine the query to include keywords like "city" or "monument"
+    query = f"{destination_name} city OR monument"
+    url = f"https://api.openverse.engineering/v1/images/?q={query}"
     try:
-        # Using Unsplash source for images
-        return f"https://source.unsplash.com/800x600/?{destination_name.replace(' ', '%20')},travel,landmark"
+        response = requests.get(url)
+        data = response.json()
+        if data['results']:
+            # Return the first image URL
+            return data['results'][0]['url']
     except Exception as e:
-        # Fallback image if API fails
-        return "https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=1000"
+        st.write(f"Error fetching image for {destination_name}: {e}")
+    # Fallback image if API fails
+    return "https://images.unsplash.com/photo-1488646953014-85cb44e25828?q=80&w=1000"
 
 def get_destination_description(location_name):
     """Generate a description for a destination (simplified mock function)"""
@@ -35,11 +41,11 @@ def get_destination_description(location_name):
 
 def display_destination_info(location_name):
     """Display information and image about a destination"""
-    # Generate a relevant image URL for the location
-    image_url = f"https://source.unsplash.com/300x200/?{location_name},travel"
+    # Fetch a relevant image URL for the location
+    image_url = fetch_destination_image(location_name)
     
     # Display the image
-    st.image(image_url, caption=location_name, use_container_width=True)  # Updated from use_column_width
+    st.image(image_url, caption=location_name, use_container_width=True)
     
     # Generate or fetch a brief description
     description = get_destination_description(location_name)
@@ -63,4 +69,3 @@ def display_multi_destination_info(location_names):
             if i + j < num_locations:
                 with col:
                     display_destination_info(location_names[i + j])
-                    
