@@ -1,0 +1,17 @@
+flask
+streamlit
+langchain
+openai
+pydantic
+transformers
+requests
+beautifulsoup4
+pandas
+numpy
+speechrecognition
+pydub
+opencv-python
+langchain_google_genai
+dotenv
+langchain_core
+streamlit_lottie
