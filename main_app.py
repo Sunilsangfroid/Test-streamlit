@@ -41,6 +41,42 @@ if 'journey_legs' not in st.session_state:
 if 'booking_steps_completed' not in st.session_state:
     st.session_state.booking_steps_completed = {}
 
+# Add this function at the top of your file with other helper functions
+def validate_payment_fields(payment_method, form_data):
+    """
+    Validate payment form fields based on payment method
+    Returns (is_valid, error_message)
+    """
+    if payment_method in ["Credit Card", "Debit Card"]:
+        card_num = form_data.get("card_number", "")
+        card_num = card_num.replace(" ", "")  # Remove spaces
+        
+        # Validate card number
+        if not card_num.isdigit() or len(card_num) != 16:
+            return False, "Card number must be 16 digits"
+            
+        # Validate CVV
+        cvv = form_data.get("cvv", "")
+        if not cvv.isdigit() or len(cvv) != 3:
+            return False, "CVV must be 3 digits"
+            
+        # Validate expiry date format
+        exp_date = form_data.get("exp_date", "")
+        if not "/" in exp_date:
+            return False, "Expiry date must be in MM/YY format"
+            
+    elif payment_method == "UPI":
+        upi_id = form_data.get("upi_id", "")
+        if not "@" in upi_id or len(upi_id.split("@")) != 2:
+            return False, "Please enter a valid UPI ID (username@provider)"
+            
+    elif payment_method == "Wallet":
+        mobile = form_data.get("mobile", "")
+        mobile = mobile.replace(" ", "")
+        if not mobile.isdigit() or len(mobile) != 10:
+            return False, "Mobile number must be 10 digits"
+    
+    return True, ""
 # Add this helper function here, before the main app code:
 def handle_hotel_booking(location_idx, hotel_data, payment_method, price):
     """Process hotel booking and update session state"""
@@ -106,6 +142,14 @@ with st.sidebar:
 
 # Main workflow
 tab1, tab2, tab3 = st.tabs(["Route Planning", "Detailed Itinerary", "Booking & Reservations"])
+
+# Add this right after creating the tabs but before the tab content
+# Tab navigation based on session state
+if st.session_state.get('nav_to_tab1', False):
+    # Clear the navigation flag
+    st.session_state['nav_to_tab1'] = False
+    # This doesn't directly switch tabs but indicates to the user to go to tab1
+    st.info("Your new trip planning is ready! Please click on the 'Route Planning' tab to begin.")
 
 with tab1:
     st.header("Step 1: Choose Your Route")
@@ -451,55 +495,132 @@ with tab3:
                     # Payment section with enhanced visuals
                     st.markdown("---")
                     st.subheader(f"💰 Payment for {leg['from']} to {leg['to']}")
-                    
+
                     col1, col2 = st.columns([1, 1])
                     with col1:
-                        payment_method = display_payment_methods(key_suffix=f"leg_{i}")
+                        payment_method = st.selectbox(
+                            "Select Payment Method",
+                            ["Credit Card", "Debit Card", "UPI", "Net Banking", "Wallet"],
+                            key=f"payment_method_{i}"
+                        )
+                        
+                        # Form data to validate
+                        form_data = {}
+                        
+                        # Display payment form based on selection with validation
+                        if payment_method == "Credit Card" or payment_method == "Debit Card":
+                            card_type = "Credit" if payment_method == "Credit Card" else "Debit"
+                            card_number = st.text_input(
+                                f"{card_type} Card Number", 
+                                placeholder="XXXX XXXX XXXX XXXX", 
+                                key=f"card_{i}",
+                                help="Must be 16 digits"
+                            )
+                            form_data["card_number"] = card_number
+                            
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                exp_date = st.text_input(
+                                    "Expiry Date", 
+                                    placeholder="MM/YY", 
+                                    key=f"exp_{i}"
+                                )
+                                form_data["exp_date"] = exp_date
+                            with c2:
+                                cvv = st.text_input(
+                                    "CVV", 
+                                    type="password", 
+                                    key=f"cvv_{i}",
+                                    placeholder="XXX",
+                                    help="Must be 3 digits"
+                                )
+                                form_data["cvv"] = cvv
+                                
+                            st.text_input("Name on Card", key=f"name_{i}")
+                                
+                        elif payment_method == "UPI":
+                            upi_id = st.text_input(
+                                "UPI ID", 
+                                placeholder="username@upi", 
+                                key=f"upi_{i}",
+                                help="Enter in format: username@upi"
+                            )
+                            form_data["upi_id"] = upi_id
+                                
+                        elif payment_method == "Net Banking":
+                            st.selectbox(
+                                "Select Bank", 
+                                ["SBI", "HDFC", "ICICI", "Axis", "PNB"], 
+                                key=f"bank_{i}"
+                            )
+                            st.text_input("User ID", key=f"userid_{i}")
+                            st.text_input("Password", type="password", key=f"pwd_{i}")
+                                
+                        elif payment_method == "Wallet":
+                            col_code, col_num = st.columns([0.3, 0.7])
+                            with col_code:
+                                country_code = st.selectbox(
+                                    "Code",
+                                    ["+91", "+1", "+44", "+61", "+81"],
+                                    index=0,
+                                    key=f"country_code_{i}",
+                                    label_visibility="collapsed"
+                                )
+                            with col_num:
+                                mobile = st.text_input(
+                                    "Mobile Number", 
+                                    key=f"mobile_{i}",
+                                    placeholder="10-digit number",
+                                    help="Must be 10 digits"
+                                )
+                            form_data["mobile"] = mobile
+                            
+                            st.selectbox(
+                                "Select Wallet", 
+                                ["Paytm", "PhonePe", "Google Pay", "Amazon Pay"], 
+                                key=f"wallet_type_{i}"
+                            )
+                        
                         # Display the payment icon
                         if payment_method in payment_icons:
                             st.markdown(f"**Selected Payment Method:** {payment_icons[payment_method]} {payment_method}")
-                    
+
                     with col2:
                         st.info(f"**Amount:** ₹{price}")
                         
                         # Updated payment security image
                         st.image("https://cdn-icons-png.flaticon.com/512/2146/2146588.png", width=100, caption="Secure Payment")
-                    
-                    # Process payment
+
+                    # Process payment with validation
                     if st.button(f"💳 Complete Booking for {leg['from']} to {leg['to']}", key=f"pay_leg_{i}", type="primary"):
-                        with st.spinner("Processing your booking..."):
-                            time.sleep(2)  # Simulate processing time
-                            st.session_state.booking_steps_completed[leg_name] = True
-                            
-                            if "payments" not in st.session_state:
-                                st.session_state.payments = []
+                        # Validate form data
+                        is_valid, error_message = validate_payment_fields(payment_method, form_data)
+                        
+                        if not is_valid:
+                            st.error(f"🚫 {error_message}")
+                        else:
+                            with st.spinner("Processing your booking..."):
+                                time.sleep(2)  # Simulate processing time
+                                st.session_state.booking_steps_completed[leg_name] = True
                                 
-                            # Add payment details to session state
-                            st.session_state.payments.append({
-                                "transaction_id": f"TX-{random.randint(1000000, 9999999)}",
-                                "amount": price,
-                                "booking_type": f"{leg['type']} from {leg['from']} to {leg['to']}",
-                                "payment_method": payment_method,
-                                "status": "Successful",
-                                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            })
-                            
-                        st.success(f"✅ Booking confirmed! Your {leg['type']} from {leg['from']} to {leg['to']} has been booked.")
+                                if "payments" not in st.session_state:
+                                    st.session_state.payments = []
+                                    
+                                # Add payment details to session state
+                                st.session_state.payments.append({
+                                    "transaction_id": f"TX-{random.randint(1000000, 9999999)}",
+                                    "amount": price,
+                                    "booking_type": f"{leg['type']} from {leg['from']} to {leg['to']}",
+                                    "payment_method": payment_method,
+                                    "status": "Successful",
+                                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                })
+                                
+                            st.success(f"✅ Booking confirmed! Your {leg['type']} from {leg['from']} to {leg['to']} has been booked.")
             
-            # Hotel booking section with enhanced visuals
+            # Hotel booking section with fixed execution
             st.markdown("---")
             st.subheader("🏨 Hotel Bookings")
-
-            # Hotel images dictionary for specific locations
-            hotel_images = {
-                "Bhubaneswar": "https://dynamic-media-cdn.tripadvisor.com/media/photo-o/0c/13/34/03/mayfair-convention.jpg?w=700&h=-1&s=1",
-                "Delhi": "https://cdn.britannica.com/96/115096-050-5AFDAF5D/Bellagio-Hotel-Casino-Las-Vegas.jpg",
-                "Agra": "https://imgcy.trivago.com/c_fill,d_dummy.jpeg,e_sharpen:60,f_auto,h_627,q_auto,w_1200/itemimages/66/54/66546_v5.jpeg",
-                "PrayagRaj": "https://imgcy.trivago.com/c_fill,d_dummy.jpeg,e_sharpen:60,f_auto,h_627,q_auto,w_1200/itemimages/31/75/3175346_v4.jpeg",
-                "Patna": "https://imgcy.trivago.com/c_fill,d_dummy.jpeg,e_sharpen:60,f_auto,h_627,q_auto,w_1200/itemimages/55/23/5523770.jpeg",
-                "New York": "https://www.usatoday.com/gcdn/-mm-/05b227ad5b8ad4e9dcb53af4f31d7fbdb7fa901b/c=0-64-2119-1259/local/-/media/USATODAY/USATODAY/2014/08/13/1407953244000-177513283.jpg",
-                "San Francisco": "https://cf.bstatic.com/xdata/images/hotel/max1024x768/164322215.jpg?k=fc3862975a4b55f867574c16f63e42bcb3dc5bd895895615fb0239fc42030b70&o=&hp=1",
-            }
 
             # Extract accommodation locations from itinerary
             accommodation_locations = []
@@ -514,78 +635,79 @@ with tab3:
                     is_booked = st.session_state.booking_steps_completed.get(acc_name, False)
                     status = "✅" if is_booked else "⏳ Pending"
                     
+                    # Hotel booking expander
                     with st.expander(f"🏨 Hotel Booking in {location} - {status}", expanded=not is_booked):
                         if is_booked:
                             st.success(f"✅ Your accommodation in {location} has been booked successfully.")
-                            continue
                             
+                            # If confirmation details are available, show them
+                            if f"hotel_{location_idx}_confirmation" in st.session_state:
+                                conf = st.session_state[f"hotel_{location_idx}_confirmation"]
+                                st.info(f"""
+                                **Booking Details:**
+                                - Hotel: {conf['hotel_name']}
+                                - Location: {conf['location']}
+                                - Amount Paid: ₹{conf['price']}
+                                - Transaction ID: {conf['transaction_id']}
+                                """)
+                            continue
+                        
                         # Generate hotel options for the location
                         hotel_options = generate_hotel_options(location, "tomorrow", "day after")
                         
-                        # Display hotel options with better images
-                        for j, hotel in enumerate(hotel_options):
-                            col1, col2 = st.columns([1, 3])
-                            with col1:
-                                # Use location-specific images if available, otherwise use a more specific hotel query
-                                if location in hotel_images:
-                                    image_url = hotel_images[location]
-                                else:
-                                    # More specific query for better hotel images
-                                    image_url = f"https://source.unsplash.com/featured/300x200/?luxury,hotel,{location}"
-                                st.image(image_url, caption=hotel['name'])
-                            
-                            with col2:
-                                st.markdown(f"**{hotel['name']}**")
-                                st.markdown(f"⭐ {'⭐' * (hotel['stars'] - 1)} ({hotel['rating']})")
-                                st.markdown(f"**Price:** 💰 ₹{hotel['price_per_night']} per night")
-                                st.markdown(f"**Amenities:** 🛌 {', '.join(hotel['amenities'])}")
-                                
-                                if st.button(f"🏨 Select {hotel['name']}", key=f"select_hotel_{location_idx}_{j}"):
-                                    st.session_state.selected_hotel = hotel
-                                    st.session_state.selected_hotel_location = location
+                        # Display hotel options in a grid
+                        st.write(f"**Select a hotel in {location}:**")
                         
-                        # Booking form if hotel selected
-                        if "selected_hotel" in st.session_state and st.session_state.selected_hotel_location == location:
-                            hotel = st.session_state.selected_hotel
-                            st.markdown("---")
-                            st.markdown(f"### 🏨 Booking: {hotel['name']}")
-                            
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.markdown("**📅 Check-in Date:**")
-                                checkin = st.date_input(f"Check-in", value=None, key=f"checkin_{location_idx}", label_visibility="collapsed")
-                                st.markdown("**🛏️ Room Type:**")
-                                room_type = st.selectbox("Room Type", ["Standard", "Deluxe", "Suite"], key=f"room_{location_idx}", label_visibility="collapsed")
-                            with col2:
-                                st.markdown("**📅 Check-out Date:**")
-                                checkout = st.date_input(f"Check-out", value=None, key=f"checkout_{location_idx}", label_visibility="collapsed")
-                                st.markdown("**👥 Number of Guests:**")
-                                guests = st.selectbox("Guests", list(range(1, 5)), key=f"guests_{location_idx}", label_visibility="collapsed")
-                                
-                            # Calculate total price
-                            nights = (checkout - checkin).days if checkin and checkout else 1
-                            total_price = hotel['price_per_night'] * nights
-                            
-                            st.info(f"**Total for {nights} night(s):** 💰 ₹{total_price}")
-                            
-                            # Payment section
-                            st.subheader(f"💳 Payment for {hotel['name']}")
-                            
-                            # Use a unique key for each hotel payment
-                            payment_method = display_payment_methods(key_suffix=f"hotel_{location_idx}_{hotel['name'].replace(' ', '_')}")
-                            
-                            # Display payment icon
-                            if payment_method in payment_icons:
-                                st.markdown(f"**Selected Payment Method:** {payment_icons[payment_method]} {payment_method}")
-                            
-                            # Process payment
-                            if st.button(f"💳 Complete Hotel Booking", key=f"pay_hotel_{location_idx}_{hotel['name'].replace(' ', '_')}", type="primary"):
-                                with st.spinner("Processing your booking..."):
-                                    time.sleep(2)  # Simulate processing time
-                                    handle_hotel_booking(location_idx, hotel, payment_method, total_price)
+                        # Create columns for hotel display
+                        cols = st.columns(2)
+                        
+                        for j, hotel in enumerate(hotel_options):
+                            col = cols[j % 2]
+                            with col:
+                                # Hotel card with border
+                                with st.container():
+                                    st.markdown("""
+                                    <style>
+                                    .hotel-card {
+                                        border: 1px solid #ddd;
+                                        border-radius: 10px;
+                                        padding: 10px;
+                                        margin-bottom: 15px;
+                                    }
+                                    </style>
+                                    """, unsafe_allow_html=True)
                                     
-                                st.success(f"✅ Hotel booking confirmed! Your stay at {hotel['name']} in {location} has been reserved.")
-            
+                                    st.markdown(f"<div class='hotel-card'>", unsafe_allow_html=True)
+                                    st.markdown(f"### {hotel['name']}")
+                                    st.markdown(f"⭐ {'⭐' * (hotel['stars'] - 1)} ({hotel['rating']})")
+                                    st.markdown(f"**Price:** ₹{hotel['price_per_night']} per night")
+                                    st.markdown(f"**Amenities:** {', '.join(hotel['amenities'][:3])}")
+                                    
+                                    # Simple one-click booking button
+                                    if st.button(f"Book this hotel", key=f"quick_book_{location_idx}_{j}"):
+                                        with st.spinner("Processing your booking..."):
+                                            # Default to a 2-night stay
+                                            total_price = hotel['price_per_night'] * 2
+                                            
+                                            # Process booking directly with minimal input
+                                            transaction_id = handle_hotel_booking(
+                                                location_idx,
+                                                hotel,
+                                                "Credit Card",  # Default payment method
+                                                total_price
+                                            )
+                                            
+                                            # Mark as booked in session state
+                                            st.session_state.booking_steps_completed[acc_name] = True
+                                            
+                                            # Success notification without balloons
+                                            st.success(f"✅ Hotel booking confirmed! Your stay at {hotel['name']} in {location} has been reserved.")
+                                            
+                                            # Use the modern rerun method
+                                            st.rerun()
+                                    
+                                    st.markdown("</div>", unsafe_allow_html=True)
+
             # Payment summary section with enhanced visuals
             st.markdown("---")
             st.subheader("💰 Payment Summary")
@@ -600,7 +722,13 @@ with tab3:
             st.markdown(f"**Booking Progress:** {progress_percentage}% complete ({completed_steps}/{total_steps} steps)")
             
             if progress_percentage == 100:
-                st.success("🎉 Congratulations! All bookings are complete. Your trip is fully booked and ready!")
+                # Improved success message with green tick mark
+                st.markdown("""
+                <div style="background-color:#d4edda; padding:20px; border-radius:10px; border:1px solid #c3e6cb; margin:20px 0;">
+                    <h3 style="color:#155724;"><span style="font-size:30px;">✅</span> All Bookings Complete!</h3>
+                    <p>Congratulations! Your entire trip is now booked and ready. All transportation and accommodations have been confirmed.</p>
+                </div>
+                """, unsafe_allow_html=True)
                 
                 # Generate final itinerary button
                 if st.button("📄 Generate Final Trip Itinerary"):
@@ -628,12 +756,37 @@ with tab3:
                         file_name="complete_travel_itinerary.pdf",
                         mime="application/pdf",
                     )
-            
-            # Reset option
-            st.markdown("---")
-            if st.button("🔄 Start Over With New Route Planning"):
-                for key in ['selected_route', 'itinerary', 'proceed_to_booking', 'journey_legs', 
-                           'booking_steps_completed', 'payments', 'selected_hotel', 'selected_hotel_location']:
-                    if key in st.session_state:
-                        del st.session_state[key]
-                st.success("Planning reset! You can now go back to the Route Planning tab.")
+                
+                # Better navigation for new journey
+                st.markdown("---")
+                st.markdown("### Start a New Journey")
+                if st.button("🔄 Plan Another Trip", type="primary"):
+                    # Clear session state for all relevant keys
+                    for key in ['selected_route', 'itinerary', 'proceed_to_booking', 'journey_legs', 
+                               'booking_steps_completed', 'payments']:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    
+                    # Clear any hotel specific keys
+                    for key in list(st.session_state.keys()):
+                        if key.startswith('hotel_'):
+                            del st.session_state[key]
+                    
+                    # Add a flag to navigate back to tab1
+                    st.session_state['nav_to_tab1'] = True
+                    st.rerun()
+            else:
+                # Reset option for incomplete bookings
+                st.markdown("---")
+                if st.button("🔄 Start Over With New Route Planning"):
+                    for key in ['selected_route', 'itinerary', 'proceed_to_booking', 'journey_legs', 
+                               'booking_steps_completed', 'payments']:
+                        if key in st.session_state:
+                            del st.session_state[key]
+                    
+                    # Clear hotel related keys
+                    for key in list(st.session_state.keys()):
+                        if key.startswith('hotel_'):
+                            del st.session_state[key]
+                        
+                    st.success("Planning reset! You can now go back to the Route Planning tab.")
